@@ -1,0 +1,93 @@
+// This script produces 3-period timescans for the years 2016 to 2019 in the Liptako Gourma region,
+// in order to visually compare cropland areas and evaluate the impact of conflict on agriculture
+// This code can be directly pasted into Google Earth Engine
+// Credit : Laure Boudinaud (WFP, Mali Country Office, VAM unit)
+
+var point = ee.Geometry.Point(-3.014710, 14.492974);// Kowa, KORO (Mali)
+var aoi = point.buffer(5e3);
+Map.centerObject(aoi, 13);
+
+// Set time variables
+var t1 = 166; // 15Jun
+var t2 = 228;// 15Aug
+var t3 = 259; // 15Sep
+var t4 = 283; //10Oct
+
+
+///// FUNCTIONS /////
+// Create a function to DONWLOAD the Sentinel-2 collection for a year of interest
+var sentinel2 = function(year) {
+  var start = year+''+'-01-01';
+  var end = year+''+'-12-31';
+  return ee.ImageCollection('COPERNICUS/S2')
+    .filterDate(start, end)
+    .filterBounds(aoi);
+};
+
+// Create a function to calculate and add NDVI band to the collection
+var addNDVI = function(image) {
+  var ndvi = image.normalizedDifference(['B8', 'B4']);
+  return image.addBands(ndvi.rename('NDVI'));
+};
+
+var s2016 = sentinel2(2016).map(addNDVI);
+print('Sentinel collection 2016', s2016);
+var s2017 = sentinel2(2017).map(addNDVI);
+print('Sentinel collection 2017', s2017);
+var s2018 = sentinel2(2018).map(addNDVI);
+print('Sentinel collection 2018', s2018);
+var s2019 = sentinel2(2019).map(addNDVI);
+print('Sentinel collection 2019', s2019);
+var s2020 = sentinel2(2020).map(addNDVI);
+print('Sentinel collection 2020', s2020);
+
+
+///// 3-PERIODS TIMESCAN PRODUCTS /////
+// 2017
+// Visualize RGB from max-NDVI values in three distinct periods of the agricultural season
+var p1 = s2017.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max();
+var p2 = s2017.filter(ee.Filter.dayOfYear(t2+1, t3)).select('NDVI').max();
+var p3 = s2017.filter(ee.Filter.dayOfYear(t3+1, t4)).select('NDVI').max();
+
+//get min and max values in the aoi (for vizualisation)
+var min_values = p2.reduceRegion('min', aoi, 100).values().getInfo(); 
+var max_values = p2.reduceRegion('max', aoi, 100).values().getInfo();
+var index_viz = {min: min_values, max: max_values};
+
+// Stack the created rasters into one 3-band image
+var stack_2017 = p1.addBands(p2).addBands(p3); 
+// Add the layer on the map (R, G, B) = (maxNDVI(t1, t2), maxNDVI(t2 + 1, t3), maxNDVI(t3 + 1, t4))
+Map.addLayer(stack_2017, index_viz, '2017'); 
+
+// Do the same for 2016
+var p1_2016 = s2016.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max();
+var p2_2016 = s2016.filter(ee.Filter.dayOfYear(t2+1, t3)).select('NDVI').max();
+var p3_2016 = s2016.filter(ee.Filter.dayOfYear(t3+1, t4)).select('NDVI').max();
+var stack_2016 = p1_2016.addBands(p2_2016).addBands(p3_2016);
+Map.addLayer(stack_2016, index_viz, '2016', false);
+
+// Do the same for 2018
+var p1_2018 = s2018.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max();
+var p2_2018 = s2018.filter(ee.Filter.dayOfYear(t2+1, t3)).select('NDVI').max();
+var p3_2018 = s2018.filter(ee.Filter.dayOfYear(t3+1, t4)).select('NDVI').max();
+var stack_2018 = p1_2018.addBands(p2_2018).addBands(p3_2018);
+Map.addLayer(stack_2018, index_viz, '2018', false); // re-use visualization min, max values used for 2017
+
+// Do the same for 2019
+var p1_2019 = s2019.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max();
+var p2_2019 = s2019.filter(ee.Filter.dayOfYear(t2+1, t3)).select('NDVI').max();
+var p3_2019 = s2019.filter(ee.Filter.dayOfYear(t3+1, t4)).select('NDVI').max();
+var stack_2019 = p1_2019.addBands(p2_2019).addBands(p3_2019);
+Map.addLayer(stack_2019, index_viz, '2019');
+
+// Do the same for 2020
+var p1_2020 = s2020.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max();
+var p2_2020 = s2020.filter(ee.Filter.dayOfYear(t2+1, t3)).select('NDVI').max();
+var p3_2020 = s2020.filter(ee.Filter.dayOfYear(t3+1, t4)).select('NDVI').max();
+var stack_2020 = p1_2020.addBands(p2_2020).addBands(p3_2020);
+Map.addLayer(stack_2020, index_viz, '2020');
+
+///// OTHERS
+var facebook = ee.Image("projects/unwfp/HQGIS/Operation/population_AF_FacebookAI"); 
+var settlement = facebook.eq(1);
+Map.addLayer(settlement.clip(aoi), {}, 'Settlements');
