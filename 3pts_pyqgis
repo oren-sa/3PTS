@@ -1,0 +1,110 @@
+## For use in QGIS Python Console
+
+import ee
+from ee_plugin import Map
+
+point = ee.Geometry.Point(-0.95684,11.89889)  # Place your point of interest here
+
+region = point.buffer(5e3)
+Map.centerObject(region, 13)
+Map.addLayer(point, {}, 'point')
+
+# Set time variables
+t1 = 166  # 15Jun
+t2 = 213  # 1Aug
+t3 = 244  # 1Sep
+t4 = 274  # 1Oct
+
+
+# Create a function to acquire the collection for a year of interest
+def sentinel2(year):
+    start = str(year) + '' + '-01-01'
+    end = str(year) + '' + '-12-31'
+    return ee.ImageCollection('COPERNICUS/S2').filterDate(start, end).filterBounds(region)
+
+
+# FUNCTION to create new bands to the collection
+GREEN_s = 'B3'
+RED_s = 'B4'
+NIR_s = 'B8'
+SWIR_s = 'B11'
+
+
+def addIndices(image):
+    ndvi = image.normalizedDifference([NIR_s, RED_s])
+    return image.addBands(ndvi.rename('NDVI'))
+
+
+s2016 = sentinel2(2016).map(addIndices)
+# print('Sentinel collection 2016', s2016.getInfo())
+s2017 = sentinel2(2017).map(addIndices)
+# print('Sentinel collection 2017', s2017.getInfo())
+s2018 = sentinel2(2018).map(addIndices)
+# print('Sentinel collection 2018', s2018.getInfo())
+s2019 = sentinel2(2019).map(addIndices)
+# print('Sentinel collection 2019', s2019.getInfo())
+s2020 = sentinel2(2020).map(addIndices)
+# print('Sentinel collection 2020', s2020.getInfo())
+s2021 = sentinel2(2021).map(addIndices)
+# print('Sentinel collection 2021', s2021.getInfo())
+
+# 3-PERIODS PRODUCTS
+# Visualize RGB from different max-NDVI values from three distinct periods of the year
+p1 = s2017.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max()
+p2 = s2017.filter(ee.Filter.dayOfYear(t2 + 1, t3)).select('NDVI').max()
+p3 = s2017.filter(ee.Filter.dayOfYear(t3 + 1, t4)).select('NDVI').max()
+
+min_values = p2.reduceRegion('min', region, 100).values().getInfo()
+max_values = p2.reduceRegion('max', region, 100).values().getInfo()
+index_viz = {'min': min_values, 'max': max_values}
+
+stack_2017 = p1.addBands(p2).addBands(p3)
+Map.addLayer(stack_2017, index_viz, '2017', False)
+#Map.addLayer(stack_2017.clip(region), index_viz, '2017 clip', False)
+
+# Do the same for 2018
+p1_2018 = s2018.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max()
+p2_2018 = s2018.filter(ee.Filter.dayOfYear(t2 + 1, t3)).select('NDVI').max()
+p3_2018 = s2018.filter(ee.Filter.dayOfYear(t3 + 1, t4)).select('NDVI').max()
+
+stack_2018 = p1_2018.addBands(p2_2018).addBands(p3_2018)
+Map.addLayer(stack_2018, index_viz, '2018', False)
+#Map.addLayer(stack_2018.clip(region), index_viz, '2018 clip', False)
+
+# Do the same for 2019
+p1_2019 = s2019.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max()
+p2_2019 = s2019.filter(ee.Filter.dayOfYear(t2 + 1, t3)).select('NDVI').max()
+p3_2019 = s2019.filter(ee.Filter.dayOfYear(t3 + 1, t4)).select('NDVI').max()
+
+stack_2019 = p1_2019.addBands(p2_2019).addBands(p3_2019)
+Map.addLayer(stack_2019, index_viz, '2019', False)
+# Map.addLayer(stack_2019.clip(region), index_viz, '2019 clip', False)
+
+# Do the same for 2016
+p1_2016 = s2016.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max()
+p2_2016 = s2016.filter(ee.Filter.dayOfYear(t2 + 1, t3)).select('NDVI').max()
+p3_2016 = s2016.filter(ee.Filter.dayOfYear(t3 + 1, t4)).select('NDVI').max()
+stack_2016 = p1_2016.addBands(p2_2016).addBands(p3_2016)
+Map.addLayer(stack_2016, index_viz, '2016', False)
+# Map.addLayer(stack_2016.clip(region), index_viz, '2016 clip', False);
+
+# Do the same for 2020 (with clipped option in comment)
+p1_2020 = s2020.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max()
+p2_2020 = s2020.filter(ee.Filter.dayOfYear(t2 + 1, t3)).select('NDVI').max()
+p3_2020 = s2020.filter(ee.Filter.dayOfYear(t3 + 1, t4)).select('NDVI').max()
+stack_2020 = p1_2020.addBands(p2_2020).addBands(p3_2020)
+Map.addLayer(stack_2020, index_viz, '2020', False)
+# Map.addLayer(stack_2020.clip(region), index_viz, '2020 clip', False);
+
+p1_2021 = s2021.filter(ee.Filter.dayOfYear(t1, t2)).select('NDVI').max()
+p2_2021 = s2021.filter(ee.Filter.dayOfYear(t2 + 1, t3)).select('NDVI').max()
+p3_2021 = s2021.filter(ee.Filter.dayOfYear(t3 + 1, t4)).select('NDVI').max()
+stack_2021 = p1_2021.addBands(p2_2021).addBands(p3_2021)
+Map.addLayer(stack_2021, index_viz, '2021', False)
+
+# Map the buffers (5km and 10km)
+buffer = ee.Image().byte().paint(region, 2, 2)
+#Map.addLayer(buffer, {}, '5km')
+#Map.addLayer(ee.Image().byte().paint(point.buffer(1e4), 2, 2), {}, '10km', False)
+
+Map.centerObject(region, 13) ##This may need to be run a second time in the console window
