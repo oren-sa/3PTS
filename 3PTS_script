@@ -87,7 +87,4 @@ var p3_2020 = s2020.filter(ee.Filter.dayOfYear(t3+1, t4)).select('NDVI').max();
 var stack_2020 = p1_2020.addBands(p2_2020).addBands(p3_2020);
 Map.addLayer(stack_2020, index_viz, '2020');
 
-///// OTHERS
-var facebook = ee.Image("projects/unwfp/HQGIS/Operation/population_AF_FacebookAI"); 
-var settlement = facebook.eq(1);
-Map.addLayer(settlement.clip(aoi), {}, 'Settlements');
+
